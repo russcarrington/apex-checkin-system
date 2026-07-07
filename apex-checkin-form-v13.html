@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apex Business Center – Appointment Check-In</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0d1b2e;
+      color: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #c9a84c;
+      color: #0d1b2e;
+      font-weight: 800;
+      font-size: 1.1rem;
+      letter-spacing: 0.04em;
+      padding: 10px 20px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    header h1 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.25;
+    }
+
+    .card {
+      background: #152238;
+      border-radius: 14px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+
+    .card h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #c9a84c;
+      margin-bottom: 22px;
+      letter-spacing: 0.02em;
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #8aaac8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 7px;
+    }
+
+    input[type="text"],
+    input[type="tel"],
+    input[type="email"],
+    select {
+      width: 100%;
+      background: #0d1b2e;
+      border: 1.5px solid #2a4060;
+      border-radius: 8px;
+      color: #f0f4f8;
+      font-size: 1rem;
+      padding: 13px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+
+    input:focus, select:focus {
+      border-color: #c9a84c;
+    }
+
+    select option {
+      background: #0d1b2e;
+    }
+
+    .arrival-clock {
+      width: 100%;
+      background: #0d1b2e;
+      border: 1.5px solid #2a4060;
+      border-radius: 8px;
+      color: #c9a84c;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      padding: 13px 14px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* SMS opt-in consent block */
+    .consent-field {
+      margin-bottom: 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #0d1b2e;
+      border: 1.5px solid #2a4060;
+      border-radius: 8px;
+      padding: 13px 14px;
+    }
+
+    .consent-field input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      flex-shrink: 0;
+      accent-color: #c9a84c;
+      cursor: pointer;
+    }
+
+    .consent-field label {
+      text-transform: none;
+      letter-spacing: normal;
+      font-size: 0.82rem;
+      font-weight: 400;
+      color: #b8cbe0;
+      line-height: 1.5;
+      margin-bottom: 0;
+      cursor: pointer;
+    }
+
+    button[type="submit"] {
+      width: 100%;
+      background: #c9a84c;
+      color: #0d1b2e;
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      border: none;
+      border-radius: 10px;
+      padding: 15px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 6px;
+    }
+
+    button[type="submit"]:hover { background: #e2bc5e; }
+    button[type="submit"]:active { transform: scale(0.98); }
+    button[type="submit"]:disabled {
+      background: #3a4e62;
+      color: #6a8099;
+      cursor: not-allowed;
+    }
+
+    #status-msg {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 0.9rem;
+      min-height: 22px;
+      color: #c9a84c;
+    }
+
+    #status-msg.error { color: #ff7070; }
+    #status-msg.success { color: #5de87e; }
+
+    #success-screen {
+      display: none;
+      text-align: center;
+      padding: 32px 0;
+    }
+
+    .checkmark {
+      font-size: 3.5rem;
+      margin-bottom: 12px;
+    }
+
+    #success-screen h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #5de87e;
+      margin-bottom: 10px;
+    }
+
+    #success-screen p {
+      font-size: 0.92rem;
+      color: #8aaac8;
+      line-height: 1.6;
+    }
+
+    /* Genuine failure screen — replaces the old fake-success fallback */
+    #error-screen {
+      display: none;
+      text-align: center;
+      padding: 32px 0;
+    }
+
+    .error-icon {
+      font-size: 3.5rem;
+      margin-bottom: 12px;
+    }
+
+    #error-screen h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #ff7070;
+      margin-bottom: 10px;
+    }
+
+    #error-screen p {
+      font-size: 0.92rem;
+      color: #8aaac8;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    #error-screen button {
+      width: 100%;
+      background: #2a4060;
+      color: #f0f4f8;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      cursor: pointer;
+    }
+
+    #error-screen button:hover { background: #34507a; }
+
+    footer {
+      margin-top: 32px;
+      text-align: center;
+      font-size: 0.74rem;
+      color: #3a5570;
+      max-width: 500px;
+    }
+
+    footer a { color: #5a7a99; text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-badge">★ APEX BUSINESS CENTER</div>
+    <h1>IndentoGo Appointment Check-In</h1>
+  </header>
+
+  <div class="card">
+    <h2>Your Information</h2>
+
+    <div id="form-view">
+      <div class="field">
+        <label for="full-name">Full Name</label>
+        <input type="text" id="full-name" placeholder="First and Last Name" autocomplete="name" required />
+      </div>
+
+      <div class="field">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email" inputmode="email" />
+      </div>
+
+      <div class="field">
+        <label for="dob">Date of Birth</label>
+        <input type="text" id="dob" placeholder="MM / DD / YYYY" inputmode="numeric" />
+      </div>
+
+      <div class="field">
+        <label for="appt-type">Appointment Type</label>
+        <select id="appt-type">
+          <option value="" disabled selected>Select a service…</option>
+          <option value="background">Background Check</option>
+          <option value="tsa-precheck">TSA PreCheck</option>
+          <option value="tsa-precheck-renewal">TSA PreCheck Renewal</option>
+          <option value="twic-new">TWIC New</option>
+          <option value="twic-renewal">TWIC Renewal</option>
+          <option value="twic-activation">TWIC Activation</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Arrival Time</label>
+        <div id="arrival-clock" class="arrival-clock">--:--:-- --</div>
+        <input type="hidden" id="arrival-time-stamp" />
+      </div>
+
+      <div class="field">
+        <label for="phone">Mobile Phone Number</label>
+        <input type="tel" id="phone" placeholder="(000) 000-0000" inputmode="tel" autocomplete="tel" maxlength="14" />
+      </div>
+
+      <div class="consent-field">
+        <input type="checkbox" id="sms-opt-in" />
+        <label for="sms-opt-in">
+          I agree to receive SMS text messages from Apex Business Center about my appointment status (e.g. "You're next" alerts). Message and data rates may apply. Message frequency varies. Reply STOP to opt out, HELP for help.
+        </label>
+      </div>
+
+      <button type="submit" id="submit-btn">Check In →</button>
+      <div id="status-msg"></div>
+    </div>
+
+    <div id="success-screen">
+      <div class="checkmark">✅</div>
+      <h3>You Are Checked-In</h3>
+      <p>Checked in at <strong id="success-time-stamp"></strong><br>
+      A staff member will be with you shortly.</p>
+    </div>
+
+    <div id="error-screen">
+      <div class="error-icon">⚠️</div>
+      <h3>Check-In Didn't Go Through</h3>
+      <p>We couldn't submit your check-in. Please see the front desk so our staff can check you in directly — sorry for the inconvenience.</p>
+      <button type="button" id="retry-btn">Try Again</button>
+    </div>
+  </div>
+
+  <footer>
+    3028 Greenmount Ave, Baltimore, MD 21218
+  </footer>
+
+  <script>
+    // Live clock
+    function formatClockTime(d) {
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    function tickClock() {
+      document.getElementById('arrival-clock').textContent = formatClockTime(new Date());
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    // DOB formatting
+    document.getElementById('dob').addEventListener('input', function (e) {
+      let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+      if (v.length >= 5) v = v.slice(0,2) + ' / ' + v.slice(2,4) + ' / ' + v.slice(4,8);
+      else if (v.length >= 3) v = v.slice(0,2) + ' / ' + v.slice(2);
+      e.target.value = v;
+    });
+
+    // Phone formatting
+    document.getElementById('phone').addEventListener('input', function (e) {
+      let v = e.target.value.replace(/\D/g, '').slice(0, 10);
+      if (v.length > 6) v = '(' + v.slice(0,3) + ') ' + v.slice(3,6) + '-' + v.slice(6,10);
+      else if (v.length > 3) v = '(' + v.slice(0,3) + ') ' + v.slice(3);
+      else if (v.length > 0) v = '(' + v;
+      e.target.value = v;
+    });
+
+    function resetToForm() {
+      document.getElementById('error-screen').style.display = 'none';
+      document.getElementById('form-view').style.display = 'block';
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = false;
+      btn.textContent = 'Check In →';
+    }
+
+    document.getElementById('retry-btn').addEventListener('click', resetToForm);
+
+    // Submit
+    document.getElementById('submit-btn').addEventListener('click', async function () {
+      const name = document.getElementById('full-name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const dob = document.getElementById('dob').value.trim();
+      const type = document.getElementById('appt-type').value;
+      const phone = document.getElementById('phone').value.trim();
+      const smsOptIn = document.getElementById('sms-opt-in').checked;
+      const status = document.getElementById('status-msg');
+
+      if (!name) {
+        status.textContent = 'Please enter your full name.';
+        status.className = 'error';
+        return;
+      }
+
+      const phoneDigits = phone.replace(/\D/g, '');
+      if (phoneDigits && phoneDigits.length !== 10) {
+        status.textContent = 'Please enter a complete 10-digit phone number.';
+        status.className = 'error';
+        return;
+      }
+
+      // Require opt-in only if a phone number was provided, since SMS needs a number to send to
+      if (phoneDigits && !smsOptIn) {
+        status.textContent = 'Please check the box to receive SMS status updates, or leave phone number blank.';
+        status.className = 'error';
+        return;
+      }
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting…';
+      status.textContent = '';
+      status.className = '';
+
+      const arrivalMoment = new Date();
+      const arrivalTimeDisplay = formatClockTime(arrivalMoment);
+      document.getElementById('arrival-time-stamp').value = arrivalMoment.toISOString();
+
+      const payload = {
+        name,
+        email: email || '',
+        dob,
+        appointmentType: type || 'Not specified',
+        phone: phone || '',
+        smsOptIn: phoneDigits ? smsOptIn : false,
+        checkedInAt: arrivalMoment.toISOString()
+      };
+
+      try {
+        const res = await fetch('https://us-central1-apex-client-check-in.cloudfunctions.net/handleCheckIn', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Server error ' + res.status);
+
+        // Genuine success — server confirmed the write
+        document.getElementById('form-view').style.display = 'none';
+        document.getElementById('success-time-stamp').textContent = arrivalTimeDisplay;
+        document.getElementById('success-screen').style.display = 'block';
+        setTimeout(() => { window.location.href = 'https://www.apexbizcntr.com'; }, 3000);
+
+      } catch (err) {
+        // Genuine failure — tell the client honestly instead of faking success.
+        // This surfaces network errors, CORS issues, and dead endpoints instead of
+        // silently losing the check-in while the client walks away thinking it worked.
+        console.error('Submit error:', err);
+        document.getElementById('form-view').style.display = 'none';
+        document.getElementById('error-screen').style.display = 'block';
+      }
+    });
+  </script>
+
+</body>
+</html>

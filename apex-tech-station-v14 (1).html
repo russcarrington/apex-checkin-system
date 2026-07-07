@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Apex — Tech Station</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+:root{
+  --navy:#0A1628;--navy-mid:#122040;--navy-light:#1C3260;--navy-card:#0F1E3A;
+  --gold:#C9A84C;--gold-light:#E8C96A;
+  --white:#FFFFFF;--gray-400:#94A3B8;--gray-500:#64748B;
+  --green:#16A34A;--amber:#D97706;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--white);min-height:100dvh;}
+
+.topbar{background:var(--white);border-bottom:2px solid rgba(201,168,76,0.3);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.topbar-logos{display:flex;align-items:center;gap:10px;flex:1;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.conn-dot{width:9px;height:9px;border-radius:50%;background:var(--gray-500);}
+.conn-dot.live{background:var(--green);}
+
+.scroll{padding:18px 16px 60px;}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px;}
+.stat{background:var(--navy-card);border-radius:12px;padding:14px 10px;text-align:center;border:1px solid rgba(255,255,255,0.05);}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:40px;color:var(--gold);line-height:1;}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--gray-500);margin-top:3px;}
+
+.queue-header{font-size:12px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;margin-top:22px;}
+.queue-header:first-of-type{margin-top:0;}
+.queue-list{display:flex;flex-direction:column;gap:8px;}
+.queue-item{background:var(--navy-card);border-radius:10px;padding:12px 14px;border:1px solid rgba(201,168,76,0.2);display:flex;align-items:center;justify-content:space-between;}
+.queue-item.in-progress{border-color:rgba(217,119,6,0.4);}
+.queue-info{flex:1;}
+.queue-name{font-weight:600;font-size:14px;color:var(--white);margin-bottom:3px;}
+.queue-type{font-size:11px;color:var(--gray-400);}
+.queue-btn{background:var(--gold);color:var(--navy);border:none;padding:6px 12px;border-radius:6px;font-weight:600;font-size:11px;cursor:pointer;margin-left:8px;white-space:nowrap;}
+.queue-btn:hover{background:var(--gold-light);}
+.queue-btn.complete-btn{background:var(--green);color:var(--white);}
+.queue-btn.complete-btn:hover{background:#1c9a4d;}
+.queue-empty{text-align:center;padding:30px 10px;color:var(--gray-500);font-size:13px;}
+
+.status-msg{text-align:center;padding:10px;background:var(--navy-card);border-radius:8px;margin-bottom:16px;font-size:12px;color:var(--gray-400);}
+.status-msg.success{color:var(--green);}
+.status-msg.error{color:#ff7070;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logos">
+    <span style="color:var(--navy);font-weight:800;font-size:16px;">A</span>
+    <div style="width:1px;height:26px;background:rgba(0,0,0,0.15);"></div>
+    <span style="color:var(--navy);font-weight:600;font-size:13px;">IdentiGO</span>
+  </div>
+  <div class="topbar-right">
+    <span style="font-size:11px;color:var(--gray-500);">Live</span>
+    <div class="conn-dot live"></div>
+  </div>
+</div>
+
+<div class="scroll">
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num" id="stat-checked">0</div>
+      <div class="stat-label">Checked In</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="stat-progress">0</div>
+      <div class="stat-label">In Progress</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="stat-completed">0</div>
+      <div class="stat-label">Completed</div>
+    </div>
+  </div>
+
+  <div id="status-msg" class="status-msg" style="display:none;"></div>
+
+  <div class="queue-header">In Progress</div>
+  <div class="queue-list" id="progress-list">
+    <div class="queue-empty">No one currently in progress</div>
+  </div>
+
+  <div class="queue-header">Queue</div>
+  <div class="queue-list" id="queue-list">
+    <div class="queue-empty">👋 Waiting for first check-in</div>
+  </div>
+
+
+</div>
+
+<script>
+console.log('✅ Tech Station Loading...');
+
+// Configuration
+const FIREBASE_DB = 'https://apex-client-check-in-default-rtdb.firebaseio.com';
+
+// Show status message
+function showStatus(msg, isError = false) {
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  el.className = 'status-msg ' + (isError ? 'error' : 'success');
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+// Fetch data from Firebase
+async function loadData() {
+  try {
+    // Get all checkins
+    const res = await fetch(FIREBASE_DB + '/checkins.json');
+    const data = await res.json();
+
+    if (!data) {
+      console.log('No check-ins yet');
+      updateUI([], [], []);
+      return;
+    }
+
+    const checkedIn = [];
+    const inProgress = [];
+    const completed = [];
+
+    Object.keys(data).forEach(key => {
+      const item = data[key];
+      if (item.status === 'checked-in') checkedIn.push({ ...item, id: key });
+      else if (item.status === 'in-progress') inProgress.push({ ...item, id: key });
+      else if (item.status === 'completed') completed.push({ ...item, id: key });
+    });
+
+    updateUI(checkedIn, inProgress, completed);
+  } catch (error) {
+    console.error('Error loading data:', error);
+    showStatus('⚠️ Connection issue', true);
+  }
+}
+
+// Update UI
+function updateUI(checkedIn, inProgress, completed) {
+  document.getElementById('stat-checked').textContent = checkedIn.length;
+  document.getElementById('stat-progress').textContent = inProgress.length;
+  document.getElementById('stat-completed').textContent = completed.length;
+
+  // In Progress list — new section with Complete button
+  const progressList = document.getElementById('progress-list');
+  if (inProgress.length === 0) {
+    progressList.innerHTML = '<div class="queue-empty">No one currently in progress</div>';
+  } else {
+    progressList.innerHTML = inProgress.map(item => `
+      <div class="queue-item in-progress">
+        <div class="queue-info">
+          <div class="queue-name">${item.name}</div>
+          <div class="queue-type">${item.appointmentType || 'N/A'}</div>
+        </div>
+        <button class="queue-btn complete-btn" onclick="completeClient('${item.id}')">Complete</button>
+      </div>
+    `).join('');
+  }
+
+  // Checked-in queue list — unchanged, Call button
+  const queueList = document.getElementById('queue-list');
+  if (checkedIn.length === 0) {
+    queueList.innerHTML = '<div class="queue-empty">👋 Waiting for first check-in</div>';
+  } else {
+    queueList.innerHTML = checkedIn.map(item => `
+      <div class="queue-item">
+        <div class="queue-info">
+          <div class="queue-name">${item.name}</div>
+          <div class="queue-type">${item.appointmentType || 'N/A'}</div>
+        </div>
+        <button class="queue-btn" onclick="callClient('${item.id}')">Call</button>
+      </div>
+    `).join('');
+  }
+}
+
+// Update client status
+window.callClient = async function(id) {
+  try {
+    await fetch(FIREBASE_DB + '/checkins/' + id + '.json', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'in-progress',
+        calledTime: new Date().toISOString()
+      })
+    });
+    showStatus('✓ Called');
+    loadData();
+  } catch (error) {
+    showStatus('Error updating status', true);
+  }
+};
+
+window.completeClient = async function(id) {
+  try {
+    await fetch(FIREBASE_DB + '/checkins/' + id + '.json', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'completed',
+        completedTime: new Date().toISOString()
+      })
+    });
+    showStatus('✓ Completed');
+    loadData();
+  } catch (error) {
+    showStatus('Error updating status', true);
+  }
+};
+
+// Initialize
+console.log('✅ Firebase URL:', FIREBASE_DB);
+loadData();
+
+// Refresh every 3 seconds
+setInterval(loadData, 3000);
+
+console.log('✅ Tech Station Ready!');
+</script>
+
+</body>
+</html>
